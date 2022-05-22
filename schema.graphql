@@ -4,3 +4,17 @@ type ExampleEntity @entity {
   owner: Bytes! # address
   approved: Bytes! # address
 }
+
+type Token @entity {
+  id: ID!
+  tokenID: BigInt!
+  tokenURI: String!
+  imageURI: String!
+  createdAt: BigInt!
+  owner: User!
+}
+
+type User @entity {
+  id: ID!
+  tokens: [Token!]! @derivedFrom(field: "owner")
+}

@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { BigInt, log, ipfs, json, JSONValue } from "@graphprotocol/graph-ts"
 import {
   MetaWarden,
   Approval,
@@ -9,7 +9,7 @@ import {
   StartingIndicesSet,
   Transfer
 } from "../generated/MetaWarden/MetaWarden"
-import { ExampleEntity } from "../generated/schema"
+import { ExampleEntity, Token, User } from "../generated/schema"
 
 export function handleApproval(event: Approval): void {
   // Entities can be loaded from the store using a string ID; this ID
@@ -94,4 +94,38 @@ export function handlePublicSaleStart(event: PublicSaleStart): void {}
 
 export function handleStartingIndicesSet(event: StartingIndicesSet): void {}
 
-export function handleTransfer(event: Transfer): void {}
+const ipfsHash = "QmUTAUJpChRYetpaxEnbso6MXBPfxtNXo8jjXQeUGB2KgD";
+export function handleTransfer(event: Transfer): void {
+  let token = Token.load(event.params.tokenId.toString())
+
+  if (!token) {
+    token = new Token(event.params.tokenId.toString())
+    token.tokenID = event.params.tokenId
+    token.createdAt = event.block.timestamp
+
+    let contract = MetaWarden.bind(event.address)
+    let tokenURI = contract.tokenURI(event.params.tokenId)
+    token.tokenURI = tokenURI
+
+    token.imageURI = ''
+    let metadata = ipfs.cat(ipfsHash + '/' + event.params.tokenId.toString() + '.json');
+    if (metadata) {
+      const value = json.fromBytes(metadata).toObject();
+      if (value) {
+        const image = value.get("image");
+        if (image) {
+          token.imageURI = image.toString();
+        }
+      }
+    }
+  }
+
+  token.owner = event.params.to.toHexString();
+  token.save()
+
+  let user = User.load(event.params.to.toHexString());
+  if (!user) {
+    user = new User(event.params.to.toHexString());
+    user.save();
+  }
+}
